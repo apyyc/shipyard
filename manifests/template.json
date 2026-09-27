@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "project": "项目名（与清单文件名一致）",
+  "title": "项目中文展示名",
+  "repo": "GitHub 仓库地址（为将来 Actions 接入预留，如 apyyc/xxx）",
+  "app_dir": "项目根目录（相对仓库根）",
+  "build": {
+    "enabled": true,
+    "script": "构建脚本名（相对 app_dir）",
+    "args": [],
+    "tag_arg": "--tag",
+    "tag_source": {
+      "file": "build_image.conf",
+      "pattern": "^DEFAULT_TAG=\"?([^\"]+)"
+    }
+  },
+  "test": {
+    "enabled": true,
+    "cmd": "测试命令（在 app_dir 下执行）"
+  },
+  "upload": {
+    "enabled": true,
+    "source_dir": "构建产物 tar 所在目录（相对仓库根）"
+  },
+  "environments": {
+    "staging": {
+      "enabled": false,
+      "remote": "用户@主机:SSH端口:远程目录",
+      "ssh_key": "",
+      "health_url": "",
+      "deploy_cmd": "ops/<项目>.staging.sh"
+    },
+    "prod": {
+      "enabled": true,
+      "remote": "用户@主机:SSH端口:远程目录",
+      "ssh_key": "",
+      "health_url": "",
+      "deploy_cmd": "ops/<项目>.prod.sh"
+    }
+  }
+}

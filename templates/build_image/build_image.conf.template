@@ -1,0 +1,180 @@
+# ============================================================
+# build_image.conf.template
+#
+# 说明:
+#   - 本文件是 build_image.sh 的项目配置模板。
+#   - 复制到项目根目录后改名为 build_image.conf。
+#   - 所有路径都相对项目根目录（PROJECT_ROOT）。
+#   - 镜像 id 用于 --image <id>，建议用小写字母/数字/下划线。
+# ============================================================
+
+# ---------- 项目基础 ----------
+PROJECT_ID="example"
+PROJECT_TITLE="示例项目"
+
+# 项目根目录；脚本和 conf 通常都在项目根目录，保持 "." 即可
+PROJECT_ROOT="."
+
+# 镜像仓库前缀；留空则直接使用 IMAGE_NAME
+REGISTRY="localhost"
+
+# dynamic tag 的默认版本；--tag 可覆盖
+DEFAULT_TAG="0.0.0"
+
+# 不传 --image 时默认构建哪些镜像；留空则使用 IMAGE_ENABLED_BY_DEFAULT
+DEFAULT_TARGETS=()
+
+# ---------- 容器工具 ----------
+# 按顺序探测可用的容器工具
+TOOL_PREFERENCE=(podman docker)
+
+# 环境变量名；可通过 FORCE=podman|docker 强制指定容器工具
+TOOL_FORCE_ENV="FORCE"
+
+# 是否进一步用 <tool> info 检测容器工具是否可用
+TOOL_CHECK_DAEMON=false
+
+# ---------- 构建行为 ----------
+# 留空则不传 --network
+BUILD_NETWORK="host"
+
+# keep  = 保留宿主代理变量
+# strip = 构建时剥掉代理变量
+PROXY_MODE="keep"
+PROXY_VARS=(HTTP_PROXY HTTPS_PROXY http_proxy https_proxy)
+
+# 仅 podman 生效
+PODMAN_HTTP_PROXY_FALSE=false
+PODMAN_FORMAT_DOCKER=false
+
+# 默认是否禁用构建缓存；--no-cache 可强制开启
+BUILD_NO_CACHE_DEFAULT=false
+
+# 留空则不传 --pull；例如 "always" / "missing" / "never"
+BUILD_PULL_POLICY=""
+
+# ---------- 导出 tar ----------
+SAVE_DEFAULT=true
+
+# 默认导出目录；相对 PROJECT_ROOT
+SAVE_DIR="../podman"
+
+# tar 命名模板；可用变量: ${IMAGE_NAME} ${TAG} ${REGISTRY} ${PROJECT_ID}
+SAVE_NAME_PATTERN='${IMAGE_NAME}-${TAG}.tar'
+
+# 已存在同名 tar 时是否覆盖
+SAVE_OVERWRITE=true
+
+# ---------- 校验与输出 ----------
+VALIDATE_DOCKERFILE=true
+VALIDATE_REQUIRED_PATHS=true
+CONTEXT_MISSING_POLICY="error"   # error / warn
+
+LOG_LEVEL="normal"               # quiet / normal / verbose
+SHOW_COMMANDS=false
+
+# ============================================================
+# 镜像列表
+#
+# 说明:
+#   - IMAGE_IDS 决定有哪些镜像。
+#   - 未传 --image 时，只构建 IMAGE_ENABLED_BY_DEFAULT=true 的镜像。
+#   - fixed tag 使用 IMAGE_TAG_VALUE。
+#   - dynamic tag 使用 DEFAULT_TAG 或 --tag。
+# ============================================================
+
+IMAGE_IDS=(example)
+
+declare -A IMAGE_LABEL=(
+  [example]="示例镜像"
+)
+
+declare -A IMAGE_DOCKERFILE=(
+  [example]="Dockerfile"
+)
+
+# 构建上下文；通常 "." 表示项目根目录
+declare -A IMAGE_CONTEXT=(
+  [example]="."
+)
+
+declare -A IMAGE_NAME=(
+  [example]="example-image"
+)
+
+# dynamic / fixed
+declare -A IMAGE_TAG_MODE=(
+  [example]="dynamic"
+)
+
+# fixed 模式才需要
+declare -A IMAGE_TAG_VALUE=(
+  [example]=""
+)
+
+# 必须存在的路径；空格分隔
+declare -A IMAGE_REQUIRED_PATHS=(
+  [example]="."
+)
+
+# 可选路径；缺失只提醒
+declare -A IMAGE_OPTIONAL_PATHS=(
+  [example]=""
+)
+
+# 附加构建参数；空格分隔
+declare -A IMAGE_BUILD_ARGS=(
+  [example]=""
+)
+
+# 多阶段构建目标；留空则不传 --target
+declare -A IMAGE_BUILD_TARGET=(
+  [example]=""
+)
+
+# 构建平台；留空则不传 --platform
+declare -A IMAGE_PLATFORM=(
+  [example]=""
+)
+
+# 未传 --image 时是否参与默认构建
+declare -A IMAGE_ENABLED_BY_DEFAULT=(
+  [example]=false
+)
+
+# 是否允许导出 tar
+declare -A IMAGE_SAVE_ENABLED=(
+  [example]=true
+)
+
+# 覆盖默认导出目录；留空则用 SAVE_DIR 或 --save
+declare -A IMAGE_SAVE_DIR=(
+  [example]=""
+)
+
+# 覆盖默认 tar 名；留空则用 SAVE_NAME_PATTERN
+declare -A IMAGE_SAVE_NAME=(
+  [example]='${IMAGE_NAME}-${TAG}.tar'
+)
+
+# 构建前 / 构建后钩子；留空则不执行
+declare -A IMAGE_PRE_BUILD_CMD=(
+  [example]=""
+)
+
+declare -A IMAGE_POST_BUILD_CMD=(
+  [example]=""
+)
+
+# 覆盖全局代理 / podman 参数；留空则用全局值
+declare -A IMAGE_PROXY_MODE=(
+  [example]=""
+)
+
+declare -A IMAGE_PODMAN_HTTP_PROXY_FALSE=(
+  [example]=""
+)
+
+declare -A IMAGE_PODMAN_FORMAT_DOCKER=(
+  [example]=""
+)

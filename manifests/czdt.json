@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "project": "czdt",
+  "title": "存在大厅",
+  "repo": "apyyc/debian13-workspace-sh",
+  "app_dir": "czdt/czdt_0.1.0",
+  "build": {
+    "enabled": true,
+    "script": "build_image.sh",
+    "tag_arg": "--tag",
+    "tag_source": {
+      "file": "build_image.conf",
+      "pattern": "^DEFAULT_TAG=\"?([^\"]+)"
+    }
+  },
+  "test": {
+    "enabled": true,
+    "cmd": ".venv/bin/python -m pytest -q"
+  },
+  "upload": {
+    "enabled": true,
+    "source_dir": "czdt/podman"
+  },
+  "environments": {
+    "staging": {
+      "enabled": true,
+      "remote": "root@103.236.99.177:50488:/docker/czdt-staging",
+      "ssh_key": "",
+      "health_url": "http://103.236.99.177:8010/docs",
+      "deploy_cmd": "ops/czdt.staging.sh"
+    },
+    "prod": {
+      "enabled": true,
+      "remote": "root@120.26.29.177:22:/srv/docker/czdt-production",
+      "ssh_key": "",
+      "health_url": "http://120.26.29.177:8010/docs",
+      "deploy_cmd": "ops/czdt.prod.sh"
+    }
+  }
+}
