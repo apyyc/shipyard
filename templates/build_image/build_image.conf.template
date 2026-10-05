@@ -6,72 +6,168 @@
 #   - 复制到项目根目录后改名为 build_image.conf。
 #   - 所有路径都相对项目根目录（PROJECT_ROOT）。
 #   - 镜像 id 用于 --image <id>，建议用小写字母/数字/下划线。
+#
+# 使用方式:
+#   1) cp templates/build_image/build_image.conf.template <项目根>/build_image.conf
+#   2) cp templates/build_image/build_image.sh <项目根>/build_image.sh
+#   3) 按下面注释逐段修改：先改“项目基础”，再改“镜像列表”。
+#
+# 阅读顺序:
+#   第一部分：全局配置（第 1~4 节），对所有镜像生效。
+#   第二部分：镜像列表，逐个镜像声明；下面的占位 id 统一用 example。
+#
+# 本文件是普通 bash 脚本（由 build_image.sh source 执行），
+# 不是 INI/YAML：等号两边不要有空格，字符串要加引号。
 # ============================================================
 
 # ---------- 项目基础 ----------
 PROJECT_ID="example"
+# 项目短标识（英文，无空格）。用于日志、导出文件名模板里的 ${PROJECT_ID}。
+# 改这里。
+
 PROJECT_TITLE="示例项目"
+# 项目显示名（中文可），只出现在日志与 --images 列表标题里，不参与路径和镜像名。
+# 改这里。
 
 # 项目根目录；脚本和 conf 通常都在项目根目录，保持 "." 即可
 PROJECT_ROOT="."
+# 相对路径以“脚本所在目录”为基准解析成绝对路径，"." 即脚本自己所在的目录。
+# 只有当脚本和 conf 不在同一层、或构建上下文别有所在时才需要改（例如 ".."）。
+# 该目录也是各镜像上下文相对路径、以及 SAVE_DIR 的解析基准。
 
 # 镜像仓库前缀；留空则直接使用 IMAGE_NAME
 REGISTRY="localhost"
+# 参与拼接最终镜像引用：REGISTRY/IMAGE_NAME:TAG → localhost/example-image:0.0.0
+# 留空（REGISTRY=""）则拼成 IMAGE_NAME:TAG，即打到本机默认仓库命名空间。
+# 推送 docker.io / 私有 registry 时填对应前缀。
 
 # dynamic tag 的默认版本；--tag 可覆盖
 DEFAULT_TAG="0.0.0"
+# 仅对 IMAGE_TAG_MODE="dynamic" 的镜像生效。
+# 优先级：命令行 --tag <ver> ＞ 本项。两者都为空时脚本会直接报错退出。
+# 建议与项目版本号（pyproject.toml / package.json）保持一致。
 
 # 不传 --image 时默认构建哪些镜像；留空则使用 IMAGE_ENABLED_BY_DEFAULT
 DEFAULT_TARGETS=()
+# 数组写法，元素用空格分隔，例如 DEFAULT_TARGETS=(backend frontend)。
+# 非空时优先级高于每个镜像的 IMAGE_ENABLED_BY_DEFAULT，相当于把默认构建集合写死在这里。
+# 留空 () 表示不启用该机制，改为逐镜像看 IMAGE_ENABLED_BY_DEFAULT。
 
 # ---------- 容器工具 ----------
 # 按顺序探测可用的容器工具
 TOOL_PREFERENCE=(podman docker)
+# 从左到右找第一个“命令存在”的工具，找到即用。
+# 注意 TOOL_CHECK_DAEMON=false 时只检查命令存在，不检查守护进程是否真的可用，
+# 所以可能出现“选了 podman 但 podman 跑不起来”的情况；
+# 此时要么调换顺序，要么改 TOOL_CHECK_DAEMON=true。
+# 实测：在无 systemd 用户会话（/run/user/<uid> 不存在）的机器上，
+# 无根 podman 会直接失败，而 docker 不受影响，可临时用 FORCE=docker 绕开。
 
 # 环境变量名；可通过 FORCE=podman|docker 强制指定容器工具
 TOOL_FORCE_ENV="FORCE"
+# 这里填的是“环境变量名”而不是值：保持 "FORCE"，然后用 FORCE=docker ./build_image.sh 调用。
+# FORCE 指定的工具必须先存在（否则报错），优先级高于 TOOL_PREFERENCE。
+# 例：FORCE=docker ./build_image.sh --image backend
 
 # 是否进一步用 <tool> info 检测容器工具是否可用
 TOOL_CHECK_DAEMON=false
+# false = 只看命令存不存在（快，但可能误选不可用的工具）。
+# true  = 额外执行 podman/docker info 探活；探测失败的会被跳过，更稳但每次多花零点几秒。
+# CI 上建议 true，本机反复构建建议 false。
 
 # ---------- 构建行为 ----------
 # 留空则不传 --network
 BUILD_NETWORK="host"
+# 传给 build 的 --network 值：host 让构建容器直接复用宿主网络，
+# 便于走宿主机代理、内网 pip/npm/apt 源；留空 ("") 则完全不加该参数，使用工具默认网络。
+# 若构建过程需要网络隔离，可改为 "none"。
 
 # keep  = 保留宿主代理变量
 # strip = 构建时剥掉代理变量
 PROXY_MODE="keep"
+# 控制 HTTP(S)_PROXY 这类变量是否进入构建环境（即 RUN 阶段能否看到）。
+# keep：原样继承宿主环境变量（适合需要走代理访问外网的机器）。
+# strip：执行构建前用 env -u VAR ... 先移除这些变量（适合内网直连、代理会导致解析失败的机器）。
+# 可用各镜像的 IMAGE_PROXY_MODE 单独覆盖本项。
+
 PROXY_VARS=(HTTP_PROXY HTTPS_PROXY http_proxy https_proxy)
+# 被判定为“代理变量”的名字清单；只有 strip 模式会用到（逐个 -u 剔除）。
+# 若项目还用到 ALL_PROXY / NO_PROXY 等，追加到这里。
 
 # 仅 podman 生效
 PODMAN_HTTP_PROXY_FALSE=false
+# true 时给 podman build 追加 --http-proxy=false，让 podman 不把宿主代理注入构建过程。
+# 与 strip 的区别：这是 podman 自身的行为开关，不依赖环境变量清单；docker 下无效。
+# 可用各镜像的 IMAGE_PODMAN_HTTP_PROXY_FALSE 单独覆盖本项。
+
 PODMAN_FORMAT_DOCKER=false
+# true 时给 podman build 追加 --format docker，产出 docker 兼容的镜像元数据
+# （如保留 HEALTHCHECK、按 docker 规则生成 manifest）。
+# 只有后续要用 docker load/run 消费这些 tar 时才需要打开；docker 下无效。
+# 可用各镜像的 IMAGE_PODMAN_FORMAT_DOCKER 单独覆盖本项。
 
 # 默认是否禁用构建缓存；--no-cache 可强制开启
 BUILD_NO_CACHE_DEFAULT=false
+# false = 正常吃缓存，增量构建快。
+# true  = 每次全量重建（排查“改了文件但镜像没变”这类问题时用）。
+# 命令行 --no-cache 可临时置为 true，无需改本文件。
 
 # 留空则不传 --pull；例如 "always" / "missing" / "never"
 BUILD_PULL_POLICY=""
+# 基础镜像拉取策略，会拼成 --pull=<值>：
+#   always  每次都拉最新基础镜像（保证基础镜像新鲜，但每次构建都要联网）
+#   missing 本地没有才拉（默认行为，最省时间）
+#   never   从不拉取，只用本地已有镜像（离线构建）
+# 留空 = 不加该参数，由容器工具自行决定。
 
 # ---------- 导出 tar ----------
 SAVE_DEFAULT=true
+# 构建完成后是否默认执行 <tool> save 导出 tar。
+# true = 每个镜像构建完就导出（便于拷到离线机器 docker load）。
+# false = 只构建不导出，等价于每次都带 --no-save。
+# 命令行 --no-save 关掉，--save <dir> 打开并指定目录。
 
 # 默认导出目录；相对 PROJECT_ROOT
 SAVE_DIR="../podman"
+# 相对路径按 PROJECT_ROOT 解析，例如项目根是 <proj>/app，则导出到 <proj>/podman。
+# 目录不存在会自动 mkdir -p。
+# 命令行 --save <dir> 可整体覆盖；各镜像的 IMAGE_SAVE_DIR 可单独覆盖。
+# 注意：这是“目录”，不是 tar 文件名。
 
 # tar 命名模板；可用变量: ${IMAGE_NAME} ${TAG} ${REGISTRY} ${PROJECT_ID}
 SAVE_NAME_PATTERN='${IMAGE_NAME}-${TAG}.tar'
+# 用单引号包住，避免本文件被 source 时变量就被展开（展开发生在导出那一刻）。
+# 例：IMAGE_NAME=czdt、TAG=0.27.1 → czdt-0.27.1.tar
+# 可用各镜像的 IMAGE_SAVE_NAME 单独覆盖。
 
 # 已存在同名 tar 时是否覆盖
 SAVE_OVERWRITE=true
+# true = 导出前先 rm -f 旧文件再写新的（重复构建不会报错）。
+# false = 已存在则告警并跳过导出（适合把 tar 当归档、怕误删的场景）。
 
 # ---------- 校验与输出 ----------
 VALIDATE_DOCKERFILE=true
+# 构建前检查 IMAGE_DOCKERFILE 指向的文件是否存在，缺失直接报错。
+# 建议保持 true：能在读几分钟的构建日志之前就发现问题。
+# 只有 Dockerfile 由 pre-build 钩子动态生成时，才需要改成 false。
+
 VALIDATE_REQUIRED_PATHS=true
+# 构建前检查 IMAGE_REQUIRED_PATHS 列出的路径是否存在（即构建上下文是否齐备）。
+# 建议保持 true：避免 COPY 到一半才失败、产出半成品镜像。
+
 CONTEXT_MISSING_POLICY="error"   # error / warn
+# 配合上一项：必需路径缺失时怎么办。
+#   error = 直接报错退出（默认，推荐）。
+#   warn  = 只打印警告继续构建（适合部分文件可选、靠 .dockerignore 兜底的场景）。
 
 LOG_LEVEL="normal"               # quiet / normal / verbose
+# quiet   只输出错误与警告，适合 CI。
+# normal  常规进度输出（默认）。
+# verbose 额外回显每一条执行的外部命令，等价于临时打开 SHOW_COMMANDS。
+
 SHOW_COMMANDS=false
+# true 时把实际执行的 podman/docker 完整命令打印出来（含所有参数），排查参数拼错时非常有用。
+# 与 LOG_LEVEL=verbose 效果相同，一般二选一。
 
 # ============================================================
 # 镜像列表
@@ -81,100 +177,146 @@ SHOW_COMMANDS=false
 #   - 未传 --image 时，只构建 IMAGE_ENABLED_BY_DEFAULT=true 的镜像。
 #   - fixed tag 使用 IMAGE_TAG_VALUE。
 #   - dynamic tag 使用 DEFAULT_TAG 或 --tag。
+#
+# 写法约定（重要）:
+#   - 下面是“每个字段一个关联数组”的结构，不是每个镜像一个块。
+#   - 新增一个镜像时，要在下面【每一个】数组里都加上它的 [id]= 条目；
+#     漏写某项时脚本按“空值”处理（多数会回退全局默认，个别如 IMAGE_NAME 会直接报错）。
+#   - 数组键 [id] 在所有数组里必须完全一致，它就是 --image <id> 里的那个 id。
 # ============================================================
 
 IMAGE_IDS=(example)
+# 【构建顺序 + 合法 id 白名单】：只有出现在这里的 id 才允许被 --image 选中。
+# 顺序即默认构建顺序；新增镜像记得往这里追加，例如 IMAGE_IDS=(backend frontend db)。
 
 declare -A IMAGE_LABEL=(
   [example]="示例镜像"
 )
+# 显示名，仅用于日志和 --images 列表，不参与任何路径或镜像名拼接。可写中文。
 
 declare -A IMAGE_DOCKERFILE=(
   [example]="Dockerfile"
 )
+# Dockerfile 文件名，相对 PROJECT_ROOT。
+# 多个镜像可共用同一个 Dockerfile（配合 IMAGE_BUILD_TARGET 选不同 stage）。
 
 # 构建上下文；通常 "." 表示项目根目录
 declare -A IMAGE_CONTEXT=(
   [example]="."
 )
+# 传给 build 命令最后那个位置参数（发给守护进程的上下文目录），相对 PROJECT_ROOT。
+# 上下文越大构建越慢（要打包传输），应尽量收窄到真正需要的子目录，
+# 并用 .dockerignore 排除 .git/.venv/node_modules 等。
 
 declare -A IMAGE_NAME=(
   [example]="example-image"
 )
+# 镜像名（不含 registry 和 tag），最终引用 = REGISTRY/IMAGE_NAME:TAG。
+# 用全小写字母、数字、-、_、/；留空会直接报错。
 
 # dynamic / fixed
 declare -A IMAGE_TAG_MODE=(
   [example]="dynamic"
 )
+# dynamic：tag 取自 DEFAULT_TAG 或 --tag，随项目版本号走（业务镜像常用）。
+# fixed  ：tag 写死在 IMAGE_TAG_VALUE，不随 --tag 变化（第三方基础镜像、数据库常用）。
 
 # fixed 模式才需要
 declare -A IMAGE_TAG_VALUE=(
   [example]=""
 )
+# 仅当上一条为 "fixed" 时填写固定 tag（如 "8.4"）；dynamic 模式留空。
 
 # 必须存在的路径；空格分隔
 declare -A IMAGE_REQUIRED_PATHS=(
   [example]="."
 )
+# 构建前校验用（受 VALIDATE_REQUIRED_PATHS 控制），相对 PROJECT_ROOT。
+# 多个路径用空格分隔，例如 "src frontend deploy/nginx"。
+# 缺失时的行为由 CONTEXT_MISSING_POLICY 决定（error 报错 / warn 告警）。
 
 # 可选路径；缺失只提醒
 declare -A IMAGE_OPTIONAL_PATHS=(
   [example]=""
 )
+# 同样相对 PROJECT_ROOT，空格分隔；缺失只打警告，不影响构建（适合可选的本地配置）。
 
 # 附加构建参数；空格分隔
 declare -A IMAGE_BUILD_ARGS=(
   [example]=""
 )
+# 原样透传给 build 命令的额外参数，按空白拆分成多个参数。
+# 例：--build-arg PIP_INDEX_URL=http://mirror/simple 或 --label a=b。
+# 注意：值里不能含空格（会被拆成两个参数）；含空格的值请用 hook 或 --build-arg 的引号写法变通。
 
 # 多阶段构建目标；留空则不传 --target
 declare -A IMAGE_BUILD_TARGET=(
   [example]=""
 )
+# 对应 build --target <stage>，只构建到指定 stage（适合一个 Dockerfile 出多个镜像）。
+# 留空则构建 Dockerfile 的最后一段。
 
 # 构建平台；留空则不传 --platform
 declare -A IMAGE_PLATFORM=(
   [example]=""
 )
+# 对应 build --platform，例如 "linux/amd64" / "linux/arm64"。
+# 跨架构构建需要宿主的 binfmt/qemu 支持，否则会在执行 RUN 时报 exec format error。
 
 # 未传 --image 时是否参与默认构建
 declare -A IMAGE_ENABLED_BY_DEFAULT=(
   [example]=false
 )
+# true  → ./build_image.sh（不带 --image）会把该镜像纳入构建。
+# false → 只有显式 --image <id> 时才构建。
+# 注意：DEFAULT_TARGETS 非空时，以 DEFAULT_TARGETS 为准，本项被忽略。
 
 # 是否允许导出 tar
 declare -A IMAGE_SAVE_ENABLED=(
   [example]=true
 )
+# false 时该镜像即使 SAVE_DEFAULT=true 也不会导出（内部开发用的中间镜像可关掉）。
 
 # 覆盖默认导出目录；留空则用 SAVE_DIR 或 --save
 declare -A IMAGE_SAVE_DIR=(
   [example]=""
 )
+# 优先级：命令行 --save <dir> ＞ 本项 ＞ 全局 SAVE_DIR。
+# 适合把数据库镜像等大块产物单独放盘。
 
 # 覆盖默认 tar 名；留空则用 SAVE_NAME_PATTERN
 declare -A IMAGE_SAVE_NAME=(
   [example]='${IMAGE_NAME}-${TAG}.tar'
 )
+# 留空即回退全局 SAVE_NAME_PATTERN；同样用单引号防止提前展开。
+# 多镜像导出到同一目录时，务必保证名字互不冲突（模板里带 ${IMAGE_NAME} 最稳）。
 
 # 构建前 / 构建后钩子；留空则不执行
 declare -A IMAGE_PRE_BUILD_CMD=(
   [example]=""
 )
+# 在项目根目录下用 bash -c 执行；非零退出会让整个脚本失败。
+# 典型用途：前端 npm ci && npm run build、生成版本号文件、代码检查。
+# 注意钩子里不要 cd 到别处，脚本已保证工作目录是 PROJECT_ROOT。
 
 declare -A IMAGE_POST_BUILD_CMD=(
   [example]=""
 )
+# 构建成功后、导出 tar 之前执行；失败同样中断脚本。
+# 典型用途：扫描镜像漏洞、打补丁 tag、通知。
 
 # 覆盖全局代理 / podman 参数；留空则用全局值
 declare -A IMAGE_PROXY_MODE=(
   [example]=""
 )
+# 留空 = 用全局 PROXY_MODE；填 keep 或 strip 只覆盖该镜像。
 
 declare -A IMAGE_PODMAN_HTTP_PROXY_FALSE=(
   [example]=""
 )
+# 留空 = 用全局 PODMAN_HTTP_PROXY_FALSE；填 true/false 只覆盖该镜像（仅 podman 生效）。
 
 declare -A IMAGE_PODMAN_FORMAT_DOCKER=(
   [example]=""
 )
+# 留空 = 用全局 PODMAN_FORMAT_DOCKER；填 true/false 只覆盖该镜像（仅 podman 生效）。
