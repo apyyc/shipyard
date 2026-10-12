@@ -1,0 +1,75 @@
+# ============================================================
+# deploy_container.conf.template
+#
+# 通用多容器部署配置模板。
+# 复制到项目根目录后改名为 deploy_container.conf，再按实际项目修改。
+#
+# 每个服务在下面这组关联数组里各占一个同名 key。
+# 数组值里的多个条目用空格分隔，例如:
+#   CONTAINER_PORTS=([app]="8080:80 8443:443")
+# ============================================================
+
+# auto / podman / docker
+DEPLOY_RUNTIME="auto"
+
+# 是否生成 systemd 用户服务；仅 podman 可用
+SYSTEMD_ENABLE=false
+
+# 服务部署顺序
+CONTAINER_ORDER=(app)
+
+declare -A CONTAINER_IMAGE=(
+  [app]="localhost/example-app:0.0.0"
+)
+
+# host 或 bridge，也可是自定义网络名
+declare -A CONTAINER_NETWORK=(
+  [app]="host"
+)
+
+# 端口映射，多个端口用空格分隔
+declare -A CONTAINER_PORTS=(
+  [app]=""
+)
+
+# 数据卷，多个卷用空格分隔；宿主路径写绝对路径
+declare -A CONTAINER_VOLUMES=(
+  [app]=""
+)
+
+# 环境变量文件
+declare -A CONTAINER_ENV_FILES=(
+  [app]=""
+)
+
+# 直接注入的环境变量
+declare -A CONTAINER_ENV_VARS=(
+  [app]=""
+)
+
+# 重启策略
+declare -A CONTAINER_RESTART=(
+  [app]="unless-stopped"
+)
+
+# 健康检查地址；留空则跳过
+declare -A CONTAINER_HEALTH_URL=(
+  [app]="http://127.0.0.1:8080/"
+)
+
+declare -A CONTAINER_HEALTH_RETRIES=(
+  [app]="30"
+)
+
+# 额外传给 run 的参数，例如 --label foo=bar
+declare -A CONTAINER_RUN_ARGS=(
+  [app]=""
+)
+
+# 部署钩子
+declare -A CONTAINER_PRE_DEPLOY_CMD=(
+  [app]=""
+)
+declare -A CONTAINER_POST_DEPLOY_CMD=(
+  [app]=""
+)

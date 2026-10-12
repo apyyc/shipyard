@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "project": "<project>",
+  "title": "<项目显示名>",
+  "repo": "<Git 仓库地址，可留空>",
+  "repo_root": ".",
+  "app_dir": ".",
+  "build": {
+    "enabled": true,
+    "script": "build_image.sh",
+    "args": [],
+    "tag_arg": "--tag",
+    "tag_source": {
+      "file": "build_image.conf",
+      "pattern": "^DEFAULT_TAG=\"?([^\"]+)"
+    }
+  },
+  "test": {
+    "enabled": false,
+    "cmd": ""
+  },
+  "upload": {
+    "enabled": true,
+    "source_dir": "podman",
+    "args": [],
+    "exclude": []
+  },
+  "environments": {
+    "staging": {
+      "enabled": false,
+      "remote": {
+        "user": "root",
+        "host": "<staging-host>",
+        "port": 22,
+        "dir": "/srv/<project>-staging"
+      },
+      "ssh_key": "",
+      "health_url": "",
+      "deploy_cmd": "ops/deploy.sh"
+    },
+    "prod": {
+      "enabled": true,
+      "remote": {
+        "user": "root",
+        "host": "<prod-host>",
+        "port": 22,
+        "dir": "/srv/<project>-prod"
+      },
+      "ssh_key": "",
+      "health_url": "",
+      "deploy_cmd": "ops/deploy.sh"
+    }
+  }
+}

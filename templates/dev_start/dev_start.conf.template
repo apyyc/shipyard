@@ -1,0 +1,56 @@
+# ============================================================
+# dev_start.conf.template
+#
+# 通用开发环境启动配置模板。
+# 复制到项目根目录后改名为 dev_start.conf，再按实际项目修改。
+#
+# 所有路径都支持相对路径。相对路径默认相对“本配置文件所在目录”。
+# 敏感信息不要写进本文件：密码只写环境变量名或仓库外文件路径。
+# ============================================================
+
+# ---------- 项目根目录 ----------
+# 留空表示“本配置文件所在目录”
+PROJECT_ROOT=""
+# 日志目录；留空表示 "${PROJECT_ROOT}/logs"
+LOG_DIR=""
+
+# ---------- 组件开关 ----------
+# 三个组件可以任意组合，也允许全部关闭后只做配置检查。
+MYSQL_ENABLED=false
+BACKEND_ENABLED=false
+FRONTEND_ENABLED=false
+
+# ---------- MySQL 容器 ----------
+MYSQL_RUNTIME="auto"
+MYSQL_CONTAINER="example-mysql"
+MYSQL_IMAGE="mysql:8.4"
+MYSQL_PORT=3306
+MYSQL_DATA_DIR=".data/mysql"
+MYSQL_CREATE=true
+MYSQL_PASSWORD_ENV="MYSQL_ROOT_PASSWORD"
+MYSQL_PASSWORD_FILE=""
+MYSQL_PASSWORD_KEY="MYSQL_ROOT_PASSWORD"
+MYSQL_EXTRA_ARGS=()
+MYSQL_READY_CMD="SELECT 1"
+MYSQL_WAIT_SECS=60
+
+# ---------- 后端进程 ----------
+BACKEND_DIR="."
+BACKEND_PORT=8010
+# 示例：BACKEND_CMD=(.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port "${BACKEND_PORT}")
+BACKEND_CMD=()
+BACKEND_RELOAD=false
+# 示例：BACKEND_RELOAD_ARGS=(--reload --reload-dir src)
+BACKEND_RELOAD_ARGS=()
+BACKEND_HEALTH_URL="http://127.0.0.1:${BACKEND_PORT}/"
+BACKEND_LOG="backend.log"
+BACKEND_STOP_PATTERN=""
+
+# ---------- 前端进程 ----------
+FRONTEND_DIR="./frontend"
+FRONTEND_PORT=5174
+# 示例：FRONTEND_CMD=(node node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port "${FRONTEND_PORT}" --strictPort)
+FRONTEND_CMD=()
+FRONTEND_HEALTH_URL="http://127.0.0.1:${FRONTEND_PORT}/"
+FRONTEND_LOG="frontend.log"
+FRONTEND_STOP_PATTERN=""
