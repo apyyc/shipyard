@@ -1,0 +1,60 @@
+# ============================================================
+# kvm_vm 配置模板
+#
+# 复制为 config/default.conf 后按实际环境修改。
+# 也可以为不同 VM 使用不同配置文件：
+#   cp config/default.conf.template config/debian13-vm1.conf
+#   ./deploy.sh --config config/debian13-vm1.conf all
+# ============================================================
+
+# ---------- 虚拟机基础配置 ----------
+VM_NAME="debian13-vm"
+VM_VCPU=4
+VM_RAM_MB=4096
+VM_DISK_SIZE_GB=40
+
+# 留空则自动使用 /var/lib/libvirt/images/${VM_NAME}.qcow2
+# VM_DISK_PATH="/var/lib/libvirt/images/debian13-vm.qcow2"
+
+# libvirt 存储池；默认 default，对应 /var/lib/libvirt/images
+STORAGE_POOL="default"
+
+# ---------- 安装介质 ----------
+# manual-iso: 启动 ISO 后由人工在控制台完成安装
+# cloud-init: 使用 Generic Cloud 镜像 + cloud-init 自动安装（预留）
+INSTALL_METHOD="manual-iso"
+ISO_PATH="/path/to/debian-13.iso"
+
+# auto 时自动探测 debian13/debian12/debian11
+OS_VARIANT="auto"
+
+# ---------- 网络与图形 ----------
+VM_NETWORK="default"
+VM_GRAPHICS="spice"          # spice / vnc / none
+VM_GRAPHICS_PORT="auto"      # auto 或 1-65535
+VM_LISTEN="127.0.0.1"
+VM_VIDEO="auto"              # auto / qxl / vga / virtio
+
+# ---------- 固件与 CPU ----------
+VM_FIRMWARE="bios"           # bios / uefi
+VM_MACHINE="q35"             # q35 / pc
+VM_CPU_MODE="host-passthrough"
+VM_MAC="auto"                # auto 或 52:54:00:xx:xx:xx
+VM_AUTOSTART=1
+VM_GUEST_AGENT=1
+
+# ---------- Cockpit ----------
+COCKPIT_PORT=9091
+INSTALL_COCKPIT=1
+INSTALL_VIEWER=1
+
+# none / ufw / firewalld
+# 默认不自动改防火墙，避免把 SSH 或现有服务锁住。
+OPEN_FIREWALL="none"
+# 例如: FIREWALL_ALLOW_CIDR="192.168.1.0/24"
+FIREWALL_ALLOW_CIDR=""
+
+# ---------- libvirt ----------
+LIBVIRT_URI="qemu:///system"
+KVM_STATE_ROOT="/var/lib/kvm-deploy"
+KVM_LOCK_TIMEOUT=30
