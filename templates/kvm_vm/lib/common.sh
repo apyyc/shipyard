@@ -221,6 +221,14 @@ load_config() {
   : "${DELETE_DISK:=0}"
   : "${START_TIMEOUT:=90}"
 
+  : "${CLOUD_IMAGE_URL:=}"
+  : "${CLOUD_IMAGE_SHA256:=}"
+  : "${CLOUD_IMAGE_PATH:=}"
+  : "${CLOUD_SSH_PUBKEY:=}"
+  : "${CLOUD_SSH_PRIVATE_KEY:=}"
+  : "${CLOUD_USER:=debian}"
+  : "${CLOUD_WAIT_TIMEOUT:=600}"
+
   # 派生值必须在 VM_NAME 最终确定之后处理
   if [[ -z "$VM_DISK_PATH" ]]; then
     VM_DISK_PATH="/var/lib/libvirt/images/${VM_NAME}.qcow2"
@@ -233,7 +241,9 @@ load_config() {
     VM_FIRMWARE VM_MACHINE VM_CPU_MODE VM_MAC VM_AUTOSTART VM_GUEST_AGENT \
     COCKPIT_PORT INSTALL_COCKPIT INSTALL_VIEWER OPEN_FIREWALL FIREWALL_ALLOW_CIDR \
     LIBVIRT_URI KVM_STATE_ROOT KVM_LOCK_TIMEOUT KVM_LOG_DIR \
-    APT_UPDATE_MODE FIREWALL_ENABLE DELETE_DISK START_TIMEOUT
+    APT_UPDATE_MODE FIREWALL_ENABLE DELETE_DISK START_TIMEOUT \
+    CLOUD_IMAGE_URL CLOUD_IMAGE_SHA256 CLOUD_IMAGE_PATH \
+    CLOUD_SSH_PUBKEY CLOUD_SSH_PRIVATE_KEY CLOUD_USER CLOUD_WAIT_TIMEOUT
 
   validate_config
 }
@@ -258,9 +268,7 @@ validate_config() {
     *) die "INSTALL_METHOD 只支持 manual-iso 或 cloud-init: ${INSTALL_METHOD:-}" ;;
   esac
 
-  case "${VM_NETWORK:-}" in
-    "" ) die "VM_NETWORK 不能为空" ;;
-  esac
+  [[ -n "${VM_NETWORK:-}" ]] || die "VM_NETWORK 不能为空"
 
   case "${VM_GRAPHICS:-}" in
     spice|vnc|none) ;;
@@ -301,6 +309,12 @@ validate_config() {
   if [[ "${INSTALL_METHOD:-}" == "manual-iso" && -z "${ISO_PATH:-}" ]]; then
     die "INSTALL_METHOD=manual-iso 时必须设置 ISO_PATH"
   fi
+
+  if [[ "${INSTALL_METHOD:-}" == "cloud-init" ]]; then
+    if [[ -z "${CLOUD_IMAGE_URL:-}" && -z "${CLOUD_IMAGE_PATH:-}" ]]; then
+      die "INSTALL_METHOD=cloud-init 时必须设置 CLOUD_IMAGE_URL 或 CLOUD_IMAGE_PATH"
+    fi
+  fi
 }
 
 # ------------------------------------------------------------
@@ -317,7 +331,7 @@ detect_os_variant() {
 
   if command -v osinfo-query >/dev/null 2>&1; then
     for candidate in debian13 debian12 debian11; do
-      if osinfo-query os "short-id=$candidate" >/dev/null 2>&1; then
+      if osinfo-query os 2>/dev/null | awk -v id="$candidate" '$1 == id { found=1 } END { exit !found }'; then
         printf '%s' "$candidate"
         return 0
       fi
@@ -326,7 +340,7 @@ detect_os_variant() {
 
   if command -v virt-install >/dev/null 2>&1; then
     for candidate in debian13 debian12 debian11; do
-      if virt-install --osinfo list 2>/dev/null | grep -qx "$candidate"; then
+      if virt-install --osinfo list 2>/dev/null | awk -v id="$candidate" '$1 == id { found=1 } END { exit !found }'; then
         printf '%s' "$candidate"
         return 0
       fi

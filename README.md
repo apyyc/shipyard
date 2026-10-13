@@ -33,6 +33,7 @@ shipyard/
 - `templates/dev_start/`：开发环境启动
 - `templates/deploy_container/`：多容器部署
 - `templates/sync_artifacts/`：产物同步
+- `templates/kvm_vm/`：KVM 虚拟机分阶段部署
 
 每个模板目录都有 README，详细索引见 `docs/templates.md`。
 

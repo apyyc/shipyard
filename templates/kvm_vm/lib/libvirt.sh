@@ -58,8 +58,10 @@ vm_display() {
 
 vm_autostart_enabled() {
   vm_exists || return 1
-  local value
-  value="$(virsh_cmd dominfo "$VM_NAME" 2>/dev/null | awk -F: '/^Autostart:/ { gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2 }' || true)"
+  local value=""
+  value="$(virsh_cmd dominfo "$VM_NAME" 2>/dev/null | awk -F: '
+    /^Autostart:/ { gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2 }
+  ' || true)"
   [[ "$value" == "enable" ]]
 }
 
@@ -70,4 +72,18 @@ set_vm_autostart() {
   else
     run_cmd virsh_cmd autostart --disable "$VM_NAME"
   fi
+}
+
+vm_ip() {
+  vm_exists || return 0
+  local ip=""
+  ip="$(virsh_cmd domifaddr "$VM_NAME" --source lease 2>/dev/null | awk '
+    /ipv4/ { split($4, a, "/"); print a[1]; exit }
+  ' || true)"
+  if [[ -z "$ip" ]]; then
+    ip="$(virsh_cmd domifaddr "$VM_NAME" --source agent 2>/dev/null | awk '
+      /ipv4/ { split($4, a, "/"); print a[1]; exit }
+    ' || true)"
+  fi
+  printf '%s' "$ip"
 }

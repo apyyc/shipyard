@@ -5,6 +5,8 @@
 # 也可以为不同 VM 使用不同配置文件：
 #   cp config/default.conf.template config/debian13-vm1.conf
 #   ./deploy.sh --config config/debian13-vm1.conf all
+#
+# 注意：不要在此写入明文密码、token、私钥。
 # ============================================================
 
 # ---------- 虚拟机基础配置 ----------
@@ -21,7 +23,7 @@ STORAGE_POOL="default"
 
 # ---------- 安装介质 ----------
 # manual-iso: 启动 ISO 后由人工在控制台完成安装
-# cloud-init: 使用 Generic Cloud 镜像 + cloud-init 自动安装（预留）
+# cloud-init: 使用 Generic Cloud 镜像 + cloud-init 自动安装（后续版本）
 INSTALL_METHOD="manual-iso"
 ISO_PATH="/path/to/debian-13.iso"
 
@@ -53,8 +55,33 @@ INSTALL_VIEWER=1
 OPEN_FIREWALL="none"
 # 例如: FIREWALL_ALLOW_CIDR="192.168.1.0/24"
 FIREWALL_ALLOW_CIDR=""
+# 是否允许脚本在防火墙未启用时主动启用；默认 0，避免锁死 SSH
+FIREWALL_ENABLE=0
 
-# ---------- libvirt ----------
+# ---------- apt / 执行控制 ----------
+# auto: 仅缺失包时 apt-get update；always: 每次更新；never: 从不更新
+APT_UPDATE_MODE="auto"
+# destroy 时是否删除 qcow2 磁盘；默认 0，只删除 VM 定义
+DELETE_DISK=0
+# 启动后等待 running 的秒数
+START_TIMEOUT=90
+
+# ---------- libvirt / 状态 ----------
 LIBVIRT_URI="qemu:///system"
 KVM_STATE_ROOT="/var/lib/kvm-deploy"
+KVM_LOG_DIR="/var/log/kvm-deploy"
 KVM_LOCK_TIMEOUT=30
+
+# ============================================================
+# cloud-init 自动安装配置（INSTALL_METHOD=cloud-init 时使用）
+# ============================================================
+# Debian Generic Cloud qcow2 下载地址，或直接指定本地文件路径。
+# CLOUD_IMAGE_URL="https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
+# CLOUD_IMAGE_SHA256=""
+# CLOUD_IMAGE_PATH=""
+
+# 留空时会自动在 KVM_STATE_ROOT/<vm-name>/cloud-init/ 下生成临时 ed25519 key。
+# CLOUD_SSH_PUBKEY=""
+# CLOUD_SSH_PRIVATE_KEY=""
+# CLOUD_USER="debian"
+# CLOUD_WAIT_TIMEOUT=600

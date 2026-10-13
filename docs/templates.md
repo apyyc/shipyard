@@ -20,6 +20,14 @@
 - 配置：deploy_container.conf
 - 用途：按顺序部署多个容器。
 
+## kvm_vm
+
+- 脚本：deploy.sh
+- 配置：config/default.conf
+- 用途：在 Debian/Ubuntu 宿主机上分阶段部署 KVM 虚拟机。
+
+子脚本位于 `scripts/`，支持预检、宿主依赖安装、KVM 模块加载、libvirt/Cockpit 配置、网络和存储准备、domain 定义、VM 启动、收尾与销毁。
+
 ## sync_artifacts
 
 - 脚本：sync_artifacts.sh

@@ -37,6 +37,12 @@ state_init() {
 state_set() {
   local key="$1"
   local value="$2"
+
+  if is_true "${DRY_RUN:-false}"; then
+    log_info "[DRY-RUN] state_set ${key}=${value}"
+    return 0
+  fi
+
   state_init
 
   local file tmp

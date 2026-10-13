@@ -1,0 +1,17 @@
+#cloud-config
+#
+# 参考模板：70-cloud-install.sh 会根据配置动态生成实际 user-data。
+# 该文件主要用于说明 cloud-init 配置内容。
+#
+hostname: __VM_NAME__
+manage_etc_hosts: true
+ssh_pwauth: false
+ssh_authorized_keys:
+  - __CLOUD_SSH_KEY__
+package_update: true
+packages:
+  - qemu-guest-agent
+runcmd:
+  - [ systemctl, enable, --now, qemu-guest-agent ]
+  - [ sh, -c, "growpart /dev/vda 1 || true" ]
+  - [ sh, -c, "resize2fs /dev/vda1 || true" ]
